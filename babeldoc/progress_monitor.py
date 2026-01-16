@@ -139,10 +139,12 @@ class ProgressMonitor:
     def on_finish(self):
         if self.disable or self.parent_monitor and self.parent_monitor.disable:
             return
-        if self.cancel_event:
-            self.cancel_event.set()
+        # Set finish_event FIRST to ensure it's set before any async code
+        # waiting on it resumes after the callback queue is exhausted
         if self.finish_event and self.loop:
             self.loop.call_soon_threadsafe(self.finish_event.set)
+        if self.cancel_event:
+            self.cancel_event.set()
         if self.cancel_event and self.cancel_event.is_set():
             self.finish_callback(type="error", error=CancelledError)
 
@@ -237,12 +239,20 @@ class ProgressMonitor:
     def translate_done(self, translate_result):
         if self.disable or self.parent_monitor and self.parent_monitor.disable:
             return
+        # Set finish_event BEFORE sending the finish callback to ensure
+        # async code waiting on it doesn't race with the callback queue
+        if self.finish_event and self.loop:
+            self.loop.call_soon_threadsafe(self.finish_event.set)
         if self.finish_callback:
             self.finish_callback(type="finish", translate_result=translate_result)
 
     def translate_error(self, error):
         if self.disable or self.parent_monitor and self.parent_monitor.disable:
             return
+        # Set finish_event BEFORE sending the error callback to ensure
+        # async code waiting on it doesn't race with the callback queue
+        if self.finish_event and self.loop:
+            self.loop.call_soon_threadsafe(self.finish_event.set)
         if self.finish_callback:
             logger.info(f"progress_monitor handle translate_error: {error}")
             self.finish_callback(type="error", error=error)

@@ -455,6 +455,31 @@ def create_parser():
         help="Reasoning string for the OpenAI term extraction translator. If not set, no reasoning field is sent for term extraction requests.",
     )
 
+    # OpenRouter Options (uses OpenAI-compatible API)
+    openrouter_group = parser.add_argument_group(
+        "Translation - OpenRouter Options",
+        description="OpenRouter specific options (OpenAI-compatible API)",
+    )
+    openrouter_group.add_argument(
+        "--openrouter",
+        action="store_true",
+        help="Use OpenRouter translator (OpenAI-compatible API).",
+    )
+    openrouter_group.add_argument(
+        "--openrouter-model",
+        default="google/gemini-2.5-flash",
+        help="The OpenRouter model to use for translation (default: google/gemini-2.5-flash).",
+    )
+    openrouter_group.add_argument(
+        "--openrouter-base-url",
+        default="https://openrouter.ai/api/v1",
+        help="The base URL for the OpenRouter API (default: https://openrouter.ai/api/v1).",
+    )
+    openrouter_group.add_argument(
+        "--openrouter-api-key",
+        help="The API key for the OpenRouter API.",
+    )
+
     return parser
 
 
@@ -485,12 +510,16 @@ async def main():
         return
 
     # 验证翻译服务选择
-    if not args.openai:
-        parser.error("必须选择一个翻译服务：--openai")
+    if not args.openai and not args.openrouter:
+        parser.error("必须选择一个翻译服务：--openai 或 --openrouter")
 
     # 验证 OpenAI 参数
     if args.openai and not args.openai_api_key:
         parser.error("使用 OpenAI 服务时必须提供 API key")
+
+    # 验证 OpenRouter 参数
+    if args.openrouter and not args.openrouter_api_key:
+        parser.error("使用 OpenRouter 服务时必须提供 API key (--openrouter-api-key)")
 
     if args.enable_process_pool:
         enable_process_pool()
@@ -535,6 +564,20 @@ async def main():
                 send_temperature=not args.no_send_temperature,
                 **term_translator_kwargs,
             )
+    elif args.openrouter:
+        # OpenRouter uses OpenAI-compatible API
+        translator = OpenAITranslator(
+            lang_in=args.lang_in,
+            lang_out=args.lang_out,
+            model=args.openrouter_model,
+            base_url=args.openrouter_base_url,
+            api_key=args.openrouter_api_key,
+            ignore_cache=args.ignore_cache,
+            enable_json_mode_if_requested=False,  # OpenRouter may not support this
+            send_dashscope_header=False,
+            send_temperature=True,
+        )
+        term_extraction_translator = translator
     else:
         raise ValueError("Invalid translator type")
 

@@ -44,8 +44,14 @@ class AsyncCallback:
     async def __anext__(self):
         # Keep waiting for the queue if a) we haven't finished, or b) if the queue is still full. This lets us finish
         # processing the remaining items even after we've finished
-        if self.finished and self.queue.empty():
-            raise StopAsyncIteration
+        while True:
+            if self.finished and self.queue.empty():
+                raise StopAsyncIteration
 
-        result = await self.queue.get()
-        return result
+            try:
+                # Use a short timeout to periodically check if finished flag was set
+                result = await asyncio.wait_for(self.queue.get(), timeout=0.1)
+                return result
+            except asyncio.TimeoutError:
+                # Timeout - loop back to check finished flag again
+                continue

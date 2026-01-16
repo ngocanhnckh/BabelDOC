@@ -52,6 +52,7 @@ dependencies = [
     "scipy>=1.15.3",
     "uharfbuzz>=0.50.2",
     "scikit-learn>=1.7.1",
+    "mcp>=1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -65,6 +66,7 @@ Issues = "https://github.com/funstory-ai/BabelDOC/issues"
 
 [project.scripts]
 babeldoc = "babeldoc.main:cli"
+babeldoc-mcp = "babeldoc.mcp_server.server:run"
 
 [build-system]
 requires = ["hatchling"]
